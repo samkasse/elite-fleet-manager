@@ -1,0 +1,55 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "A user of the Elite Fleet Manager",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "email": { "type": "string", "format": "email" },
+        "displayName": { "type": "string" },
+        "photoURL": { "type": "string" },
+        "subscriptionTier": { "type": "string", "enum": ["free", "premium", "enterprise"] },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "email", "subscriptionTier", "createdAt"]
+    },
+    "Vehicle": {
+      "title": "Vehicle",
+      "description": "A luxury vehicle in the fleet",
+      "type": "object",
+      "properties": {
+        "ownerId": { "type": "string" },
+        "name": { "type": "string" },
+        "make": { "type": "string" },
+        "model": { "type": "string" },
+        "year": { "type": "number" },
+        "licensePlate": { "type": "string" },
+        "imageUrl": { "type": "string" },
+        "status": { "type": "string", "enum": ["in_garage", "with_driver", "maintenance", "other"] },
+        "currentDriver": { "type": "string" },
+        "lastUsed": { "type": "string", "format": "date-time" },
+        "locationLat": { "type": "number" },
+        "locationLng": { "type": "number" },
+        "locationName": { "type": "string" },
+        "fuelLevel": { "type": "number" },
+        "batteryLevel": { "type": "number" },
+        "mileage": { "type": "number" },
+        "lastServiced": { "type": "string", "format": "date-time" },
+        "hasTracker": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["ownerId", "name", "make", "model", "year", "status", "createdAt"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": { "$ref": "#/entities/User" },
+      "description": "User profiles"
+    },
+    "/vehicles/{vehicleId}": {
+      "schema": { "$ref": "#/entities/Vehicle" },
+      "description": "Vehicles owned by users"
+    }
+  }
+}

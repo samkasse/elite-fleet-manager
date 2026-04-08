@@ -1,0 +1,94 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // ===============================================================
+    // Helper Functions
+    // ===============================================================
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+    
+    function isDocOwner() {
+      return isAuthenticated() && request.auth.uid == resource.data.ownerId;
+    }
+
+    function uidUnchanged() {
+      return !('uid' in request.resource.data) || request.resource.data.uid == request.auth.uid;
+    }
+
+    function uidNotModified() {
+      return !('uid' in request.resource.data) || request.resource.data.uid == resource.data.uid;
+    }
+    
+    function ownerIdUnchanged() {
+      return !('ownerId' in request.resource.data) || request.resource.data.ownerId == request.auth.uid;
+    }
+
+    function ownerIdNotModified() {
+      return !('ownerId' in request.resource.data) || request.resource.data.ownerId == resource.data.ownerId;
+    }
+
+    function hasRequiredFields(fields) {
+      return request.resource.data.keys().hasAll(fields);
+    }
+    
+    function isValidEmail(email) {
+      return email is string && email.matches("^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$");
+    }
+
+    // ===============================================================
+    // Domain Validators
+    // ===============================================================
+    function isValidUser(data) {
+      return hasRequiredFields(['uid', 'email', 'subscriptionTier', 'createdAt']) &&
+             data.uid is string && data.uid.size() > 0 && data.uid.size() < 100 &&
+             data.email is string && isValidEmail(data.email) && data.email.size() < 100 &&
+             (!('displayName' in data) || (data.displayName is string && data.displayName.size() < 100)) &&
+             (!('photoURL' in data) || (data.photoURL is string && data.photoURL.size() < 500)) &&
+             data.subscriptionTier in ['free', 'premium', 'enterprise'] &&
+             data.createdAt is string;
+    }
+
+    function isValidVehicle(data) {
+      return hasRequiredFields(['ownerId', 'name', 'make', 'model', 'year', 'status', 'createdAt']) &&
+             data.ownerId is string && data.ownerId.size() > 0 && data.ownerId.size() < 100 &&
+             data.name is string && data.name.size() > 0 && data.name.size() < 100 &&
+             data.make is string && data.make.size() > 0 && data.make.size() < 100 &&
+             data.model is string && data.model.size() > 0 && data.model.size() < 100 &&
+             data.year is number && data.year > 1900 && data.year < 2100 &&
+             (!('licensePlate' in data) || (data.licensePlate is string && data.licensePlate.size() < 50)) &&
+             (!('imageUrl' in data) || (data.imageUrl is string && data.imageUrl.size() < 1000)) &&
+             data.status in ['in_garage', 'with_driver', 'maintenance', 'other'] &&
+             (!('currentDriver' in data) || (data.currentDriver is string && data.currentDriver.size() < 100)) &&
+             (!('lastUsed' in data) || data.lastUsed is string) &&
+             (!('locationLat' in data) || data.locationLat is number) &&
+             (!('locationLng' in data) || data.locationLng is number) &&
+             (!('locationName' in data) || (data.locationName is string && data.locationName.size() < 200)) &&
+             (!('fuelLevel' in data) || (data.fuelLevel is number && data.fuelLevel >= 0 && data.fuelLevel <= 100)) &&
+             (!('batteryLevel' in data) || (data.batteryLevel is number && data.batteryLevel >= 0 && data.batteryLevel <= 100)) &&
+             (!('mileage' in data) || (data.mileage is number && data.mileage >= 0)) &&
+             (!('lastServiced' in data) || data.lastServiced is string) &&
+             (!('hasTracker' in data) || data.hasTracker is bool) &&
+             data.createdAt is string;
+    }
+
+    match /users/{userId} {
+      allow read: if isOwner(userId);
+      allow create: if isOwner(userId) && isValidUser(request.resource.data) && uidUnchanged();
+      allow update: if isOwner(userId) && isValidUser(request.resource.data) && uidNotModified();
+      allow delete: if isOwner(userId);
+    }
+
+    match /vehicles/{vehicleId} {
+      allow read: if isDocOwner();
+      allow create: if isAuthenticated() && isValidVehicle(request.resource.data) && ownerIdUnchanged();
+      allow update: if isDocOwner() && isValidVehicle(request.resource.data) && ownerIdNotModified();
+      allow delete: if isDocOwner();
+    }
+  }
+}
